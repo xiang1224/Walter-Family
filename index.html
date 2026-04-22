@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KLOV_AUTH_TERMINAL_V5</title>
+    <style>
+        :root {
+            --klov-red: #ff1744;
+            --tomato-green: #00ff41;
+            --bg-color: #030303;
+            --terminal-border: rgba(0, 255, 65, 0.1);
+            --klov-gold: #c5a059;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            opacity: 0.1;
+            transition: opacity 1s, filter 1s;
+        }
+
+        body::after {
+            content: " ";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 1000;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #auth-shell {
+            width: 92%;
+            max-width: 420px;
+            padding: 45px 35px;
+            background: rgba(5, 5, 5, 0.98);
+            border: 1px solid var(--terminal-border);
+            text-align: center;
+            z-index: 10;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+            transition: all 0.5s ease;
+        }
+
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--tomato-green);
+            opacity: 0.4;
+        }
+
+        .c-tl {
+            top: -1px;
+            left: -1px;
+            border-right: 0;
+            border-bottom: 0;
+        }
+
+        .c-tr {
+            top: -1px;
+            right: -1px;
+            border-left: 0;
+            border-bottom: 0;
+        }
+
+        .c-bl {
+            bottom: -1px;
+            left: -1px;
+            border-right: 0;
+            border-top: 0;
+        }
+
+        .c-br {
+            bottom: -1px;
+            right: -1px;
+            border-left: 0;
+            border-top: 0;
+        }
+
+        .sys-header {
+            font-size: 8pt;
+            color: #444;
+            text-align: left;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        /* 元素 A: 修正後的 Logo 容器 */
+        .logo-container {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 30px;
+            border: 1px solid #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.05);
+        }
+
+        /* 家族 Logo 樣式 (平滑淡出) */
+        .disc-logo {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            filter: grayscale(100%) brightness(0.6);
+            z-index: 2;
+        }
+
+        .disc-logo.active {
+            opacity: 1;
+        }
+
+        /* 番茄人樣式 (滲透時顯現) */
+        .tomato-overlay {
+            position: absolute;
+            width: 90%;
+            opacity: 0;
+            /* 強烈紅光濾鏡 */
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(330deg) saturate(800%) drop-shadow(0 0 15px var(--klov-red));
+            mix-blend-mode: screen;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 5;
+            /* 確保它在最高層 */
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 8pt;
+            color: #555;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        input {
+            width: 100%;
+            background: #000;
+            border: 1px solid #333;
+            color: var(--tomato-green);
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            outline: none;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 18px;
+            background: transparent;
+            border: 1px solid var(--tomato-green);
+            color: var(--tomato-green);
+            cursor: pointer;
+            font-weight: bold;
+            letter-spacing: 5px;
+            transition: 0.3s;
+        }
+
+        .auth-btn:hover:not(:disabled) {
+            background: var(--tomato-green);
+            color: #000;
+        }
+
+        /* 警告信樣式 */
+        #warning-letter {
+            display: none;
+            width: 95%;
+            max-width: 600px;
+            background: #050505;
+            border: 1px solid var(--klov-red);
+            padding: 50px 40px;
+            z-index: 20;
+            box-shadow: 0 0 60px rgba(255, 0, 0, 0.3);
+        }
+
+        .type-line {
+            opacity: 0;
+            margin-bottom: 12px;
+            line-height: 1.6;
+            border-left: 2px solid transparent;
+            padding-left: 10px;
+        }
+
+        .type-line.visible {
+            opacity: 1;
+            border-left-color: var(--klov-red);
+            transition: opacity 0.5s;
+        }
+
+        .highlight {
+            color: var(--klov-red);
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--klov-red);
+        }
+
+        /* 震動特效 */
+        .shake {
+            animation: shake 0.12s infinite;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(2px, 1px);
+            }
+
+            50% {
+                transform: translate(-2px, -1px);
+            }
+
+            100% {
+                transform: translate(1px, 2px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="canvas-bg"></canvas>
+
+    <div id="auth-shell">
+        <div class="corner c-tl"></div>
+        <div class="corner c-tr"></div>
+        <div class="corner c-bl"></div>
+        <div class="corner c-br"></div>
+
+        <div class="sys-header" id="sys-title">KLOV_GATE // TRI-COUNCIL_AUTH</div>
+
+        <div class="logo-container">
+            <img src="WALTER.png" class="disc-logo active" id="logo-w">
+            <img src="EDWARD.png" class="disc-logo" id="logo-e">
+            <img src="MORGAN.png" class="disc-logo" id="logo-m">
+
+            <img src="hacker_tomato_agent.png" class="tomato-overlay" id="hacker-logo">
+        </div>
+
+        <div class="input-group">
+            <label>ACCESS_IDENTIFIER</label>
+            <input type="text" id="user-id" placeholder="EMPLOYEE_ID">
+        </div>
+
+        <div class="input-group">
+            <label>SECURITY_PASSKEY</label>
+            <input type="password" id="pass-key" placeholder="••••••••">
+        </div>
+
+        <button class="auth-btn" id="main-btn" onclick="normalAuth()">Initialize Auth</button>
+        <div id="status-msg" style="margin-top:20px; font-size: 8pt; color: #444;">[等待驗證指令]</div>
+    </div>
+
+    <div id="warning-letter">
+        <div
+            style="color: var(--klov-red); font-size: 18pt; font-weight: bold; margin-bottom: 30px; text-align: center; letter-spacing: 5px;">
+            TERMINATION NOTICE</div>
+        <div id="text-container">
+            <div class="type-line">發送單位：<span class="highlight">克洛夫集團 - 網絡監控與電子對抗組</span></div>
+            <div class="type-line">授權代號： KLOV-SIG-TERMINATE-2026</div>
+            <div class="type-line">目標狀態： <span class="highlight">已鎖定（LOCKED）__</span></div>
+            <div class="type-line" style="color: #666; margin-top: 20px;">[系統警告] 偵測到未經授權的外部滲透</div>
+            <div class="type-line">致訪問者：</div>
+            <div class="type-line">你成功穿透了我們的外部防火牆 。這是一個令人印象深刻的技術展現，但也是你人生中<span class="highlight">最後一個錯誤選擇</span> 。
+            </div>
+            <div class="type-line">在你閱讀這行文字的同時，我們已經找到你了。</div>
+            <div class="type-line"
+                style="color: var(--klov-gold); font-style: italic; border: none; background: rgba(197, 160, 89, 0.05); padding: 15px; margin: 20px 0;">
+                「秩序源於力量，而力量不容挑釁。」 —— 三頭議會
+            </div>
+            <div class="type-line" style="text-align: right; margin-top: 30px; border: none;">
+                <span style="font-weight: bold; color: #eee;">三頭議會聯名發布</span><br>
+                <span style="font-size: 9pt; color: #555;">沃爾特家族 | 愛德華家族 | 摩根家族</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 背景數位雨控制
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const letters = "0123456789ABCDEF";
+        const drops = Array(Math.floor(canvas.width / 16)).fill(1);
+        let isHacked = false;
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = isHacked ? "#ff0000" : "#00ff41";
+            ctx.font = "16px monospace";
+            drops.forEach((y, i) => {
+                const text = letters[Math.floor(Math.random() * letters.length)];
+                ctx.fillText(text, i * 16, y * 16);
+                if (y * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(drawMatrix, 50);
+
+    // --- 新增變數：追蹤失敗次數 ---
+    let loginAttempts = 0;
+    const MAX_ATTEMPTS = 3;
+
+    // --- 功能 A: 正常登入按鈕 (帶有次數限制) ---
+    function normalAuth() {
+        const msg = document.getElementById('status-msg');
+        const btn = document.getElementById('main-btn');
+
+        // 如果已經超過次數，直接攔截（理論上按鈕會被禁用，這是雙重保護）
+        if (loginAttempts >= MAX_ATTEMPTS) return;
+
+        btn.disabled = true;
+        msg.innerText = "> 連線中...";
+        msg.style.color = "#888";
+
+        setTimeout(() => {
+            loginAttempts++; // 增加失敗次數
+
+            if (loginAttempts < MAX_ATTEMPTS) {
+                // 前兩次失敗
+                btn.disabled = false;
+                msg.innerText = `> [錯誤] 憑證無效。剩餘嘗試次數：${MAX_ATTEMPTS - loginAttempts}`;
+                msg.style.color = "var(--klov-red)";
+                if (navigator.vibrate) navigator.vibrate(100);
+            } else {
+                // 第三次失敗：永久鎖定
+                btn.disabled = true;
+                btn.innerText = "ACCESS_LOCKED";
+                btn.style.borderColor = "#444";
+                btn.style.color = "#444";
+
+                msg.innerHTML = `<span style="color: var(--klov-red); font-weight: bold;">
+                > [嚴重警告] 嘗試次數過多。<br>
+                > 帳號已永久鎖定。<br>
+                > 三頭議會已收到潛在滲透警報。
+            </span>`;
+
+                // 視覺特效：讓 Logo 區域閃一下紅光提醒
+                document.querySelector('.logo-container').style.boxShadow = "0 0 30px rgba(255, 23, 68, 0.4)";
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            }
+        }, 1200);
+    }
+
+        // --- 功能 B: 劇情啟動 (控制台輸入 tomatosuperman()) ---
+        function tomatosuperman() {
+            isHacked = true;
+            clearInterval(logoRotation); // 1. 停止家族 Logo 的切換計時器
+
+            const btn = document.getElementById('main-btn');
+            const passInput = document.getElementById('pass-key');
+            const idInput = document.getElementById('user-id');
+            const shell = document.getElementById('auth-shell');
+            const hackerLogo = document.getElementById('hacker-logo');
+            const msg = document.getElementById('status-msg');
+            const sysTitle = document.getElementById('sys-title');
+
+            btn.disabled = true;
+            btn.innerText = "OVERRIDING...";
+            btn.style.borderColor = "var(--klov-red)";
+            btn.style.color = "var(--klov-red)";
+
+            sysTitle.innerText = "WARNING: SECURITY BREACH DETECTED";
+            sysTitle.style.color = "var(--klov-red)";
+
+            // 2. 視覺震撼：震動、背景轉紅
+            shell.classList.add('shake');
+            document.getElementById('canvas-bg').style.opacity = "0.5";
+
+            // 3. 元素 C: Logo 強制轉場
+            // 讓所有家族 Logo 瞬間隱藏
+            familyLogos.forEach(logo => {
+                logo.classList.remove('active'); // 移除輪播的 active 類
+                logo.style.transition = "opacity 0.2s ease"; // 縮短淡出時間，製造衝擊感
+            });
+
+            // 讓番茄代理人顯現 (帶有強烈紅光)
+            setTimeout(() => {
+                hackerLogo.style.opacity = "1";
+            }, 200); // 給予極微小的延遲，讓 Logo 消失更乾淨
+
+            // 4. 開始亂碼灌入
+            const garbageInterval = setInterval(() => {
+                const chars = "!@#$%^&*()_+-=[]{}|;:,.<>?/0123456789";
+                let randomStr = "";
+                for (let i = 0; i < 15; i++) randomStr += chars[Math.floor(Math.random() * chars.length)];
+                passInput.value = randomStr;
+                idInput.value = "ERR_" + randomStr.substring(0, 6);
+                msg.innerText = "> TRACING_BY_TOMATO_" + randomStr.substring(0, 4);
+                msg.style.color = "var(--klov-red)";
+            }, 50);
+
+            // 5. 切換到警告信
+            setTimeout(() => {
+                clearInterval(garbageInterval);
+                shell.style.display = "none";
+                document.getElementById('warning-letter').style.display = "block";
+                document.title = "⚠️ TERMINATION NOTICE";
+                showLines();
+            }, 3500);
+        }
+
+        function showLines() {
+            const lines = document.querySelectorAll('.type-line');
+            lines.forEach((line, index) => {
+                setTimeout(() => {
+                    line.classList.add('visible');
+                    if (navigator.vibrate) navigator.vibrate(20);
+                }, index * 900);
+            });
+        }
+    </script>
+</body>
+
+</html>
